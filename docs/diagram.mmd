@@ -1,0 +1,69 @@
+graph TD
+    Config
+    FSM
+    Raft
+
+    Config --> Raft
+    FSM --> Raft
+    LogStore --> Raft
+    StableStore --> Raft
+    SnapshotStore --> Raft
+    Transport --> Raft
+
+    run((run))
+    runFSM((runFSM))
+    runSnapshots((runSnapshots))
+    Raft -..-> run
+    Raft -..-> runFSM
+    Raft -..-> runSnapshots
+
+    run --> runFollower
+    run --> runCandidate
+    run --> runLeader
+
+    fsmMutateCh[/fsmMutateCh/]
+    fsmSnapshotCh[/fsmSnapshotCh/]
+
+    fsmMutateCh --> runFSM
+    fsmSnapshotCh --> runFSM
+
+    runLeader -->|restoreUserSnapshot| fsmMutateCh
+
+    runSnapshots -->|snapshotRequest| fsmSnapshotCh
+
+    raftSnapshot[Raft.Snapshot] -->|snapshotRequest| userSnapshotCh[/userSnapshotCh/]
+    userSnapshotCh --> runSnapshots
+    runSnapshots -->|periodicSnapshot| fsmSnapshotCh
+
+    runLeader -->|applyLogs| fsmMutateCh
+    runFollower -->|installSnapshot| fsmMutateCh
+
+    appendEntries -->|applyLogs| fsmMutateCh
+
+    runFSM -->|restoreSnapshot| FSMRestore[FSM.Restore]
+    runFSM -->|applyLogs| FSMApply[FSM.Apply]
+    runFSM -->|snapshot| FSMSnapshot[FSM.Snapshot]
+
+    askPeerToVote((askPeerToVote))
+
+
+    replicate((replicate))
+    pipelineReplicate((pipelineReplicate))
+    heartbeat((heartbeat))
+
+    replicate -..-> heartbeat
+    replicate ----> pipelineReplicate
+
+    startStopReplication -..-> replicate
+    replicate --> TransportAppendEntries[Transport.AppendEntries]
+    pipelineReplicate --> TransportAppendEntries
+    pipelineReplicate -.-> pipelineDecode
+
+    notifyCh[/notifyCh/] --> heartbeat
+    heartbeat -->|notify| TransportAppendEntries
+    heartbeat -->|periodic| TransportAppendEntries
+
+
+    
+
+
